@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
+apiVersion: opslab.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: sysctl-hardening
+  version: 0.1.0
+spec:
+  title: Kernel parameters
+  summary: Someone tuned this server's kernel for a lab network and it stayed that way. Restore safe sysctl settings, at runtime and after a reboot.
+  category: linux-hardening
+  difficulty: easy
+  estimatedTime: 20m
+  tags: [sysctl, kernel, network]
+  authors:
+    - name: opslab
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: server
+      runtime: vm
+      image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+      resources: {cpu: "1", memory: 1Gi}
+      setup: [setup/setup.sh]
+
+  access:
+    terminals:
+      - {machine: server, label: server}
+
+  # Each check first applies the configuration files (as a reboot would),
+  # then reads the live values: both must be right.
+  tasks:
+    - id: no-forwarding
+      title: The server does not route packets between interfaces
+      points: 10
+      hints:
+        - {text: "A server that is not a router must not forward packets: `net.ipv4.ip_forward`.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "/usr/lib/systemd/systemd-sysctl || exit 1; for k in net.ipv4.ip_forward; do v=$(sysctl -n $k) || exit 1; echo $k=$v; echo \"$v\" | grep -qx '0' || exit 1; done"}
+    - id: no-redirects
+      title: ICMP redirects are neither accepted nor sent
+      points: 10
+      hints:
+        - {text: "Redirects let anyone on the network rewrite your routes. Set both the `all` and the `default` variants.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "/usr/lib/systemd/systemd-sysctl || exit 1; for k in net.ipv4.conf.all.accept_redirects net.ipv4.conf.default.accept_redirects net.ipv4.conf.all.send_redirects; do v=$(sysctl -n $k) || exit 1; echo $k=$v; echo \"$v\" | grep -qx '0' || exit 1; done"}
+    - id: kernel-pointers
+      title: Kernel addresses are hidden from unprivileged users
+      points: 10
+      hints:
+        - {text: "Kernel addresses in /proc help exploits: `kernel.kptr_restrict` (1 or 2).", cost: 2}
+      check:
+        machine: server
+        shell: {run: "/usr/lib/systemd/systemd-sysctl || exit 1; for k in kernel.kptr_restrict; do v=$(sysctl -n $k) || exit 1; echo $k=$v; echo \"$v\" | grep -qx '[12]' || exit 1; done"}
+    - id: dmesg-restricted
+      title: Only root can read the kernel log
+      points: 5
+      hints:
+        - {text: "`kernel.dmesg_restrict`.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "/usr/lib/systemd/systemd-sysctl || exit 1; for k in kernel.dmesg_restrict; do v=$(sysctl -n $k) || exit 1; echo $k=$v; echo \"$v\" | grep -qx '1' || exit 1; done"}
+    - id: link-protection
+      title: Symlink and hardlink protections are on
+      points: 10
+      hints:
+        - {text: "They stop classic /tmp race attacks. Debian turns them on by default: something turned them off.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "/usr/lib/systemd/systemd-sysctl || exit 1; for k in fs.protected_symlinks fs.protected_hardlinks; do v=$(sysctl -n $k) || exit 1; echo $k=$v; echo \"$v\" | grep -qx '1' || exit 1; done"}

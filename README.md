@@ -6,6 +6,11 @@ The official challenges of [opslab](https://github.com/Sigeth) (working name), a
 |---|---|---|---|
 | [leaky-home](leaky-home) | Linux hardening | easy | 1 `pod` |
 | [exposed-debug-port](exposed-debug-port) | Containers | easy | 1 `pod` |
+| [ssh-hardening](ssh-hardening) | Linux hardening | easy | 1 `vm` |
+| [sudoers-cleanup](sudoers-cleanup) | Linux hardening | medium | 1 `vm` |
+| [sysctl-hardening](sysctl-hardening) | Linux hardening | easy | 1 `vm` |
+| [auditd-watch](auditd-watch) | Linux hardening | medium | 1 `vm` (own image) |
+| [firewall-nftables](firewall-nftables) | Linux hardening | medium | 1 `vm` |
 
 ## Layout
 
@@ -15,7 +20,7 @@ Every directory holding a `challenge.yaml` is one challenge package, with its ow
 <challenge>/
   challenge.yaml          manifest: machines, access, tasks and their checks
   instructions/en.md      what the student reads
-  images/<machine>/       Dockerfile of each machine image
+  images/<machine>/       Dockerfile (pod machines) or image.yaml VM image recipe (vm machines)
   setup/                  scripts run once when an instance starts
   solution/               reference solution (teachers and tests only)
 ```

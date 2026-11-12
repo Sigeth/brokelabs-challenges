@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
+apiVersion: opslab.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: sudoers-cleanup
+  version: 0.1.0
+spec:
+  title: sudoers cleanup
+  summary: An intern has full root and the backup account can run tar as root. Give each account only what it needs.
+  category: linux-hardening
+  difficulty: medium
+  estimatedTime: 25m
+  tags: [sudo, privilege-escalation, least-privilege]
+  authors:
+    - name: opslab
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: server
+      runtime: vm
+      image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+      resources: {cpu: "1", memory: 1Gi}
+      setup: [setup/setup.sh]
+
+  access:
+    terminals:
+      - {machine: server, label: server}
+
+  tasks:
+    - id: intern-no-sudo
+      title: The intern cannot use sudo at all
+      points: 10
+      hints:
+        - {text: "`sudo -l -U intern` lists what intern may run. Rules can live in /etc/sudoers and in every file of /etc/sudoers.d/.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "sudo -l -U intern", expectOutput: "is not allowed to run sudo"}
+    - id: backup-no-tar
+      title: The backup account cannot run tar as root
+      points: 15
+      hints:
+        - {text: "tar can run any command (`--checkpoint-action=exec=...`): whoever runs tar as root is root. See GTFOBins.", cost: 3}
+      check:
+        machine: server
+        shell: {run: "! sudo -l -U backup | grep -q tar"}
+    - id: backup-still-works
+      title: The backup account can still run the backup script as root
+      points: 10
+      hints:
+        - {text: "Allow exactly the full path of the script, with no arguments: `/usr/local/bin/backup-home \"\"`.", cost: 3}
+      check:
+        machine: server
+        shell: {run: "sudo -u backup sudo -n /usr/local/bin/backup-home"}
+    - id: sudoers-valid
+      title: Every sudoers file is valid
+      points: 5
+      hints:
+        - {text: "Edit sudoers with `visudo` (or check a file with `visudo -cf FILE`): a syntax error can break sudo for everyone.", cost: 1}
+      check:
+        machine: server
+        shell: {run: "visudo -c"}

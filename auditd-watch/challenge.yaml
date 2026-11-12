@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
+apiVersion: opslab.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: auditd-watch
+  version: 0.1.0
+spec:
+  title: Audit trail
+  summary: Nobody would notice if someone edited the accounts or sudo rules on this server. Turn the audit daemon on and watch the sensitive files, durably.
+  category: linux-hardening
+  difficulty: medium
+  estimatedTime: 25m
+  tags: [auditd, logging, detection]
+  authors:
+    - name: opslab
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: server
+      runtime: vm
+      # Built from images/server: the opslab-images Debian 13 base with auditd.
+      image: ghcr.io/sigeth/opslab-challenges/auditd-watch/server:0.1.0
+      resources: {cpu: "1", memory: 1Gi}
+      setup: [setup/setup.sh]
+
+  access:
+    terminals:
+      - {machine: server, label: server}
+
+  tasks:
+    - id: auditd-running
+      title: The audit daemon runs and starts at boot
+      points: 5
+      hints:
+        - {text: "`systemctl status auditd`: is it enabled?", cost: 1}
+      check:
+        machine: server
+        shell: {run: "systemctl is-active --quiet auditd && systemctl is-enabled --quiet auditd"}
+    - id: shadow-watched
+      title: Changes to /etc/shadow are recorded
+      points: 10
+      hints:
+        - {text: "A watch rule: `auditctl -w PATH -p wa -k KEY` (w: writes, a: attribute changes).", cost: 2}
+      check:
+        machine: server
+        # A metadata change (same mode) must leave a new event in the audit log:
+        # only events after the check started count.
+        shell: {run: "export LC_ALL=C; since=$(date '+%x %T') && sleep 1 && chmod 0640 /etc/shadow && sleep 1 && ausearch --input-logs -f /etc/shadow -ts $since >/dev/null"}
+    - id: passwd-watched
+      title: Changes to /etc/passwd are recorded
+      points: 10
+      hints:
+        - {text: "Same rule as for /etc/shadow, on /etc/passwd.", cost: 2}
+      check:
+        machine: server
+        # A metadata change (same mode) must leave a new event in the audit log:
+        # only events after the check started count.
+        shell: {run: "export LC_ALL=C; since=$(date '+%x %T') && sleep 1 && chmod 0644 /etc/passwd && sleep 1 && ausearch --input-logs -f /etc/passwd -ts $since >/dev/null"}
+    - id: sudoers-watched
+      title: Changes to /etc/sudoers are recorded
+      points: 10
+      hints:
+        - {text: "Watch /etc/sudoers (and /etc/sudoers.d/ while you are at it).", cost: 2}
+      check:
+        machine: server
+        # A metadata change (same mode) must leave a new event in the audit log:
+        # only events after the check started count.
+        shell: {run: "export LC_ALL=C; since=$(date '+%x %T') && sleep 1 && chmod 0440 /etc/sudoers && sleep 1 && ausearch --input-logs -f /etc/sudoers -ts $since >/dev/null"}
+    - id: rules-persistent
+      title: The rules survive a restart of the audit daemon
+      points: 10
+      hints:
+        - {text: "auditctl changes the running rules only. At boot, augenrules loads the files of /etc/audit/rules.d/.", cost: 3}
+      check:
+        machine: server
+        # Load the rules from disk on an empty rule set (as a boot does), then
+        # look for the watches.
+        shell: {run: "auditctl -D >/dev/null && augenrules --load >/dev/null && rules=$(auditctl -l) && for f in /etc/shadow /etc/passwd /etc/sudoers; do echo \"$rules\" | grep -q -- \"-w $f -p [rwxa]*w[rwxa]*\" || exit 1; done"}

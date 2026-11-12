@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
+apiVersion: opslab.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: ssh-hardening
+  version: 0.1.0
+spec:
+  title: SSH hardening
+  summary: A server lets root log in over SSH and accepts weak passwords. Lock sshd down without locking yourself out.
+  category: linux-hardening
+  difficulty: easy
+  estimatedTime: 20m
+  tags: [ssh, sshd, authentication]
+  authors:
+    - name: opslab
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: server
+      runtime: vm
+      # opslab-images Debian 13 base, used as is: setup breaks it.
+      image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+      resources: {cpu: "1", memory: 1Gi}
+      setup: [setup/setup.sh]
+
+  access:
+    terminals:
+      - {machine: server, label: server}
+
+  tasks:
+    - id: no-root-login
+      title: Root cannot log in over SSH, even with a valid key
+      points: 10
+      hints:
+        - {text: "`sudo sshd -T | grep -i permitrootlogin` shows the setting sshd really uses, whatever file it comes from.", cost: 2}
+        - {text: "Files in /etc/ssh/sshd_config.d/ are read first, and the first value wins.", cost: 3}
+      check:
+        machine: server
+        sshLogin: {user: root, expect: denied}
+    - id: no-password-login
+      title: Password logins are refused
+      points: 10
+      hints:
+        - {text: "Keys are much harder to guess than `deploy`'s password. Look at PasswordAuthentication and KbdInteractiveAuthentication.", cost: 2}
+      check:
+        machine: server
+        sshLogin: {user: deploy, method: password, password: deploy123, expect: denied}
+    - id: student-still-in
+      title: You can still log in with your key
+      points: 5
+      hints:
+        - {text: "Test your configuration with `sudo sshd -t` before reloading, and keep this terminal open while you try a new login.", cost: 1}
+      check:
+        machine: server
+        sshLogin: {user: student, expect: allowed}

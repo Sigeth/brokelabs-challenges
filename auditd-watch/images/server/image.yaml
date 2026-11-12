@@ -1,0 +1,6 @@
+# VM image of the server: the opslab-images Debian 13 base with auditd.
+# Built by opslab-ci (`vm-image`).
+version: 0.1.0
+source:
+  image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+run: [install.sh]

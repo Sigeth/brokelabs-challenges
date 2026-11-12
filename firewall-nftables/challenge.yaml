@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
+apiVersion: opslab.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: firewall-nftables
+  version: 0.1.0
+spec:
+  title: Default-deny firewall
+  summary: An internal admin panel and a metrics endpoint are reachable from the network. Write an nftables firewall that only lets SSH and the website in, and keep it after a reboot.
+  category: linux-hardening
+  difficulty: medium
+  estimatedTime: 30m
+  tags: [firewall, nftables, network]
+  authors:
+    - name: opslab
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: server
+      runtime: vm
+      # Built from images/server: the opslab-images Debian 13 base with nftables.
+      image: ghcr.io/sigeth/opslab-challenges/firewall-nftables/server:0.1.0
+      resources: {cpu: "1", memory: 1Gi}
+      setup: [setup/setup.sh]
+
+  access:
+    terminals:
+      - {machine: server, label: server}
+
+  tasks:
+    - id: website-open
+      title: The website still answers on port 80
+      points: 5
+      check:
+        machine: server
+        http: {port: 80, path: /, expectStatus: 200}
+    - id: admin-blocked
+      title: The admin panel (port 8080) is unreachable from the network
+      points: 10
+      hints:
+        - {text: "Probes come from outside the machine: blocking 8080 in the input chain is enough. Stopping the service does not count (see the next task).", cost: 2}
+      check:
+        machine: server
+        port: {port: 8080, expect: closed}
+    - id: admin-still-runs
+      title: The admin panel still works from the server itself
+      points: 5
+      hints:
+        - {text: "Traffic to 127.0.0.1 goes through the loopback interface: accept `iif lo`.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=3)\""}
+    - id: default-deny
+      title: Everything not explicitly allowed is blocked (metrics on port 9100 too)
+      points: 15
+      hints:
+        - {text: "Blocking ports one by one misses the next service someone starts. Set the input chain's policy to drop and accept only what you need.", cost: 3}
+        - {text: "Accept `ct state established,related` first, or replies to the server's own connections are dropped.", cost: 2}
+      check:
+        machine: server
+        port: {port: 9100, expect: closed}
+    - id: firewall-persistent
+      title: The firewall is loaded at boot
+      points: 10
+      hints:
+        - {text: "Debian's nftables service loads /etc/nftables.conf at boot, once enabled. `nft list ruleset` prints what is loaded now.", cost: 2}
+      check:
+        machine: server
+        shell: {run: "systemctl is-enabled --quiet nftables && nft -c -f /etc/nftables.conf && grep -Eq 'hook input.*policy drop' /etc/nftables.conf"}
