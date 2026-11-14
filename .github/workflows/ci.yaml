@@ -2,8 +2,9 @@ name: ci
 
 # Pipelines live in github.com/Sigeth/opslab-ci (Dagger). Every directory with
 # a challenge.yaml is linted on its own, and every machine image is built:
-#   dagger -m github.com/Sigeth/opslab-ci@v0.2.0 call challenge-lint --source=leaky-home --cli-version=v0.2.0
-#   dagger -m github.com/Sigeth/opslab-ci@v0.2.0 call image --source=leaky-home/images/box
+#   dagger -m github.com/Sigeth/opslab-ci@v0.3.0 call challenge-lint --source=leaky-home --cli-version=v0.3.0
+#   dagger -m github.com/Sigeth/opslab-ci@v0.3.0 call image --source=leaky-home/images/box
+#   dagger -m github.com/Sigeth/opslab-ci@v0.3.0 call vm-image --source=auditd-watch/images/server
 
 on:
   push:
@@ -19,12 +20,14 @@ jobs:
     outputs:
       challenges: ${{ steps.find.outputs.challenges }}
       images: ${{ steps.find.outputs.images }}
+      vm-images: ${{ steps.find.outputs.vm-images }}
     steps:
       - uses: actions/checkout@v5
       - id: find
         run: |
           echo "challenges=$(ls -d */challenge.yaml | xargs -n1 dirname | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
           echo "images=$(ls -d */images/*/Dockerfile | xargs -n1 dirname | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+          echo "vm-images=$(ls -d */images/*/image.yaml | xargs -n1 dirname | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
 
   lint:
     needs: find
@@ -38,9 +41,9 @@ jobs:
       - uses: dagger/dagger-for-github@v8.4.1
         with:
           version: "0.21.11"
-          module: github.com/Sigeth/opslab-ci@v0.2.0
+          module: github.com/Sigeth/opslab-ci@v0.3.0
           verb: call
-          args: challenge-lint --source=${{ matrix.challenge }} --cli-version=v0.2.0
+          args: challenge-lint --source=${{ matrix.challenge }} --cli-version=v0.3.0
 
   image:
     needs: find
@@ -54,6 +57,23 @@ jobs:
       - uses: dagger/dagger-for-github@v8.4.1
         with:
           version: "0.21.11"
-          module: github.com/Sigeth/opslab-ci@v0.2.0
+          module: github.com/Sigeth/opslab-ci@v0.3.0
           verb: call
           args: image --source=${{ matrix.image }}
+
+  # VM image recipes (vm machines), built on an opslab-images base.
+  vm-image:
+    needs: find
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.find.outputs.vm-images) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dagger/dagger-for-github@v8.4.1
+        with:
+          version: "0.21.11"
+          module: github.com/Sigeth/opslab-ci@v0.3.0
+          verb: call
+          args: vm-image --source=${{ matrix.image }}
