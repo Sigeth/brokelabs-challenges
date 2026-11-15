@@ -23,30 +23,60 @@ cd "$(dirname "$0")/.."
 REGISTRY=ghcr.io/sigeth/opslab-challenges
 CATALOG=ghcr.io/sigeth/opslab-catalog:latest
 BUILD=.release
-images=/var/lib/rancher/k3s/agent/images
+
+# In GitHub Actions, a failure becomes an error annotation (readable without
+# the logs): the command, and the state of the test cluster when there is one.
+report_failure() {
+  local status=$? line=$1 command=$2 details=""
+  [[ -n "${GITHUB_ACTIONS:-}" ]] || return "$status"
+  if kubectl get nodes >/dev/null 2>&1; then
+    details=$( { kubectl get nodes -o wide; kubectl get pods -A | grep -v -E "Running|Completed"; \
+      kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp | tail -15; } 2>&1 | head -60)
+  fi
+  details="line $line: $command (exit $status)"$'\n'"$details"
+  details=${details//'%'/'%25'}
+  details=${details//$'\n'/'%0A'}
+  echo "::error title=release.sh ${STEP:-}::$details"
+  return "$status"
+}
+trap 'report_failure "$LINENO" "$BASH_COMMAND"' ERR
+
+# die stops with a message, annotated in GitHub Actions.
+die() {
+  echo "$*" >&2
+  [[ -z "${GITHUB_ACTIONS:-}" ]] || echo "::error title=release.sh ${STEP:-}::$*"
+  exit 1
+}
+set -E
 
 # version_of prints the package version, as lint reads it ("<name> <version>: valid").
 version_of() { "$OPSLAB" challenge lint "$1" | awk 'NR == 1 { sub(":", "", $2); print $2 }'; }
 
 check() {
   local tag=$1 challenge=${1%%/*} version=${1#*/v}
-  [[ -f "$challenge/challenge.yaml" ]] || { echo "no challenge $challenge" >&2; exit 1; }
-  [[ "$(version_of "$challenge")" == "$version" ]] || {
-    echo "$challenge/challenge.yaml is at version $(version_of "$challenge"), not $version" >&2
-    exit 1
-  }
+  [[ -f "$challenge/challenge.yaml" ]] || die "no challenge $challenge"
+  [[ "$(version_of "$challenge")" == "$version" ]] || die "$challenge/challenge.yaml is at version $(version_of "$challenge"), not $version"
   "$OPSLAB" challenge lint "$challenge"
   # The package may only use images this repository publishes, or public bases.
   while IFS=$'\t' read -r machine ref dir; do
-    [[ "$dir" == "-" || "$ref" == "$REGISTRY/$challenge/$machine:"* ]] || {
-      echo "$machine: $ref must be $REGISTRY/$challenge/$machine:<version>" >&2
-      exit 1
-    }
+    [[ "$dir" == "-" || "$ref" == "$REGISTRY/$challenge/$machine:"* ]] || die "$machine: $ref must be $REGISTRY/$challenge/$machine:<version>"
   done < <("$OPSLAB" challenge images "$challenge")
   echo "$tag: releasing $challenge $version"
 }
 
+# tools installs what the runner image may lack.
+tools() {
+  local missing=()
+  for tool in jq skopeo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+  if ((${#missing[@]})); then
+    sudo apt-get update -qq && sudo apt-get install -y -qq "${missing[@]}" >/dev/null
+  fi
+  command -v helm >/dev/null || curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+}
+
 cluster() {
+  tools
+  [[ -e /dev/kvm ]] || die "this machine has no /dev/kvm: vm machines cannot run"
   # GitHub runners expose /dev/kvm to root only.
   echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
     sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
@@ -114,6 +144,7 @@ publish() {
   echo "$challenge $version: $pkg, listed in $index"
 }
 
+STEP=${1:-}
 case "${1:-}" in
   check | load | publish) "$1" "${2:?missing argument}" ;;
   test) run_test "${2:?missing argument}" ;;
