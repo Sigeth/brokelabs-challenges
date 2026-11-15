@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      OPSLAB_CLI_VERSION: v0.4.2
+      OPSLAB_CLI_VERSION: v0.4.3
       DAGGER_VERSION: "0.21.11"
       CHART: opslab-charts/opslab
     steps:
