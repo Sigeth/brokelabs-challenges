@@ -18,12 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, ubuntu-26.04]
-        apparmor: [on]
-        include:
-          # Diagnostic: is AppArmor what breaks 26.04 (Postgres hangs, QEMU's
-          # cpus_kick_thread gets EACCES)?
-          - {os: ubuntu-26.04, apparmor: off}
-    name: platform (${{ matrix.os }}, AppArmor ${{ matrix.apparmor }})
+    name: platform (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -41,13 +36,6 @@ jobs:
           go-version: "1.27"
       - name: Install the opslab CLI
         run: go install "github.com/Sigeth/opslab-cli/cmd/opslab@$OPSLAB_CLI_VERSION"
-      - name: Disable AppArmor
-        if: matrix.apparmor == 'off'
-        run: |
-          sudo systemctl stop apparmor || true
-          sudo aa-teardown || true
-          echo N | sudo tee /sys/module/apparmor/parameters/enabled || true
-          sudo aa-status 2>&1 | head -3 || true
       - name: Install Dagger
         run: |
           mkdir -p "$HOME/.local/bin"
