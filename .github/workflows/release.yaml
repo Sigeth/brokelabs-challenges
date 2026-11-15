@@ -12,6 +12,8 @@ name: release
 on:
   push:
     tags: ["*/v*"]
+    # Test without publishing: push a branch release-test/<challenge>.
+    branches: ["release-test/*"]
 
 permissions:
   contents: read
@@ -20,12 +22,15 @@ permissions:
 
 # One release at a time: every release adds its package to the same index.
 concurrency:
-  group: catalog
+  group: ${{ startsWith(github.ref, 'refs/tags/') && 'catalog' || github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04 runners refuse to start KubeVirt VMs (QEMU's cpus_kick_thread
+    # gets "Permission denied", most likely from AppArmor): 24.04 until opslab
+    # supports 26.04 nodes.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       OPSLAB_CLI_VERSION: v0.4.2
@@ -47,14 +52,22 @@ jobs:
           mkdir -p "$HOME/.local/bin"
           curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Name the challenge
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*) echo "CHALLENGE=${GITHUB_REF_NAME%%/*}" >> "$GITHUB_ENV" ;;
+            *) echo "CHALLENGE=${GITHUB_REF_NAME#release-test/}" >> "$GITHUB_ENV" ;;
+          esac
       - name: Check the tag
+        if: startsWith(github.ref, 'refs/tags/')
         run: make release-check TAG="$GITHUB_REF_NAME"
       - name: Start a test cluster
         run: make test-cluster
       - name: Test
-        run: make release-test CHALLENGE="${GITHUB_REF_NAME%%/*}"
+        run: make release-test CHALLENGE="$CHALLENGE"
       - name: Publish
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: make release-publish CHALLENGE="${GITHUB_REF_NAME%%/*}"
+        run: make release-publish CHALLENGE="$CHALLENGE"
