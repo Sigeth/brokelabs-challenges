@@ -3,7 +3,7 @@ apiVersion: opslab.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: ssh-hardening
-  version: 0.1.0
+  version: 0.1.1
 spec:
   title: SSH hardening
   summary: A server lets root log in over SSH and accepts weak passwords. Lock sshd down without locking yourself out.
