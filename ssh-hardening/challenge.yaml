@@ -48,7 +48,8 @@ spec:
         sshLogin: {user: deploy, method: password, password: deploy123, expect: denied}
     - id: student-still-in
       title: You can still log in with your key
-      points: 5
+      points: 0
+      guard: true
       hints:
         - {text: "Test your configuration with `sudo sshd -t` before reloading, and keep this terminal open while you try a new login.", cost: 1}
       check:

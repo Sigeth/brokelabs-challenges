@@ -31,7 +31,8 @@ spec:
   tasks:
     - id: website-open
       title: The website still answers on port 80
-      points: 5
+      points: 0
+      guard: true
       check:
         machine: server
         http: {port: 80, path: /, expectStatus: 200}
@@ -45,7 +46,8 @@ spec:
         port: {port: 8080, expect: closed}
     - id: admin-still-runs
       title: The admin panel still works from the server itself
-      points: 5
+      points: 0
+      guard: true
       hints:
         - {text: "Traffic to 127.0.0.1 goes through the loopback interface: accept `iif lo`.", cost: 2}
       check:

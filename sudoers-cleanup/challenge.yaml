@@ -46,7 +46,8 @@ spec:
         shell: {run: "! sudo -l -U backup | grep -q tar"}
     - id: backup-still-works
       title: The backup account can still run the backup script as root
-      points: 10
+      points: 0
+      guard: true
       hints:
         - {text: "Allow exactly the full path of the script, with no arguments: `/usr/local/bin/backup-home \"\"`.", cost: 3}
       check:
@@ -54,9 +55,10 @@ spec:
         shell: {run: "sudo -u backup sudo -n /usr/local/bin/backup-home"}
     - id: sudoers-valid
       title: Every sudoers file is valid
-      points: 5
+      points: 0
+      guard: true
       hints:
-        - {text: "Edit sudoers with `visudo` (or check a file with `visudo -cf FILE`): a syntax error can break sudo for everyone.", cost: 1}
+        - {text: "Edit sudoers with `visudo` (or check a file with `visudo -cf FILE`): a syntax error can break sudo for everyone.", cost: 0}
       check:
         machine: server
         shell: {run: "visudo -c"}
