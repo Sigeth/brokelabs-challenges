@@ -25,26 +25,41 @@ CATALOG=ghcr.io/sigeth/opslab-catalog:latest
 BUILD=.release
 
 # In GitHub Actions, a failure becomes an error annotation (readable without
-# the logs): the command, and the state of the test cluster when there is one.
+# the logs): the command, the last lines it printed, and the state of the test
+# cluster when there is one.
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  LOG=$(mktemp)
+  exec > >(tee -a "$LOG") 2>&1
+fi
+
+annotate() {
+  local text=$1
+  text=${text//'%'/'%25'}
+  text=${text//$'\r'/'%0D'}
+  text=${text//$'\n'/'%0A'}
+  echo "::error title=release.sh ${STEP:-}::$text"
+}
+
 report_failure() {
   local status=$? line=$1 command=$2 details=""
-  [[ -n "${GITHUB_ACTIONS:-}" ]] || return "$status"
+  # Only the main shell reports: failures in $(...) are its business.
+  [[ -n "${GITHUB_ACTIONS:-}" && $BASH_SUBSHELL -eq 0 ]] || return "$status"
+  trap - ERR
+  details="line $line: $command (exit $status)"$'\n'"$(tail -n 25 "$LOG" 2>/dev/null || true)"
   if kubectl get nodes >/dev/null 2>&1; then
-    details=$( { kubectl get nodes -o wide; kubectl get pods -A | grep -v -E "Running|Completed"; \
-      kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp | tail -15; } 2>&1 | head -60)
+    details+=$'\n'"--- cluster"$'\n'"$( { kubectl get pods -A | grep -v -E 'Running|Completed' || true; \
+      kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp | tail -n 10 || true; } 2>&1 | head -n 40)"
   fi
-  details="line $line: $command (exit $status)"$'\n'"$details"
-  details=${details//'%'/'%25'}
-  details=${details//$'\n'/'%0A'}
-  echo "::error title=release.sh ${STEP:-}::$details"
+  annotate "$details"
   return "$status"
 }
 trap 'report_failure "$LINENO" "$BASH_COMMAND"' ERR
+set -E
 
 # die stops with a message, annotated in GitHub Actions.
 die() {
   echo "$*" >&2
-  [[ -z "${GITHUB_ACTIONS:-}" ]] || echo "::error title=release.sh ${STEP:-}::$*"
+  [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "$*"
   exit 1
 }
 set -E
