@@ -35,7 +35,17 @@ opslab challenge images leaky-home                       # images built from ima
 opslab challenge manifest leaky-home | kubectl apply -f -   # install on a dev platform (unsigned)
 ```
 
-CI lints every challenge. In the opslab workspace, `make dev-challenges` (or Tilt) builds the images and installs every challenge on the dev cluster.
+CI lints every challenge. In the opslab workspace, `make dev-challenges` (or Tilt) builds the images and installs every challenge on the dev cluster, and `make test-challenges` runs `opslab challenge test` on all of them.
+
+## Releasing
+
+Bump `metadata.version` in the challenge's `challenge.yaml`, then push a tag `<challenge>/v<version>`:
+
+```sh
+git tag -a ssh-hardening/v0.1.0 -m ssh-hardening/v0.1.0 && git push origin ssh-hardening/v0.1.0
+```
+
+The release workflow tests the challenge on a fresh cluster (every task fails, the solution runs, every task passes), then publishes its machine images, the package (`ghcr.io/sigeth/opslab-challenges/<challenge>`) and the official catalog index (`ghcr.io/sigeth/opslab-catalog:latest`), all signed keyless by the workflow. Installs trust that identity through the chart's `official` catalog source.
 
 ## License
 

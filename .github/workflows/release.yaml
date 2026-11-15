@@ -1,0 +1,60 @@
+name: release
+
+# Releases one challenge per tag <challenge>/v<version>, e.g. ssh-hardening/v0.1.0
+# (D44): tests it on this runner (k3s, KubeVirt and opslab, since VM machines
+# need KVM, which Dagger cannot reach), then publishes its machine images, the
+# signed package (ghcr.io/sigeth/opslab-challenges/<challenge>) and the signed
+# official catalog index (ghcr.io/sigeth/opslab-catalog:latest).
+#
+# The keyless signatures carry the identity of this workflow, which the
+# official catalog source of the chart trusts: keep this file's path.
+
+on:
+  push:
+    tags: ["*/v*"]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # keyless signing
+
+# One release at a time: every release adds its package to the same index.
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPSLAB_CLI_VERSION: v0.4.1
+      DAGGER_VERSION: "0.21.11"
+      CHART: opslab-charts/opslab
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: Sigeth/opslab-charts
+          ref: v0.4.0
+          path: opslab-charts
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27"
+      - name: Install the opslab CLI and Dagger
+        run: |
+          go install "github.com/Sigeth/opslab-cli/cmd/opslab@$OPSLAB_CLI_VERSION"
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Check the tag
+        run: make release-check TAG="$GITHUB_REF_NAME"
+      - name: Start a test cluster
+        run: make test-cluster
+      - name: Test
+        run: make release-test CHALLENGE="${GITHUB_REF_NAME%%/*}"
+      - name: Publish
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make release-publish CHALLENGE="${GITHUB_REF_NAME%%/*}"
