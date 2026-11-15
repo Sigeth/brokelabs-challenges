@@ -47,12 +47,25 @@ report_failure() {
   trap - ERR
   details="line $line: $command (exit $status)"$'\n'"$(tail -n 25 "$LOG" 2>/dev/null || true)"
   if kubectl get nodes >/dev/null 2>&1; then
-    details+=$'\n'"--- cluster"$'\n'"$( { kubectl get pods -A | grep -v -E 'Running|Completed' || true; \
-      kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp | tail -n 10 || true; } 2>&1 | head -n 40)"
+    details+=$'\n'"--- cluster"$'\n'"$(cluster_state 2>&1 | head -n 120)"
   fi
   annotate "$details"
   return "$status"
 }
+# cluster_state shows the pods that are not ready, with their last logs and
+# events.
+cluster_state() {
+  kubectl get pods -A | grep -v -E 'Running|Completed' || true
+  local ns pod
+  kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace} {.metadata.name} {.status.phase} {.status.containerStatuses[*].ready}{"\n"}{end}' |
+    awk '$3 != "Succeeded" && /false/ {print $1, $2}' | head -n 5 | while read -r ns pod; do
+    echo "--- $ns/$pod"
+    kubectl -n "$ns" logs "$pod" --all-containers --tail=12 2>&1 || true
+    kubectl -n "$ns" logs "$pod" --all-containers --previous --tail=8 2>/dev/null || true
+    kubectl -n "$ns" get events --field-selector "involvedObject.name=$pod" --sort-by=.lastTimestamp 2>/dev/null | tail -n 4 || true
+  done
+}
+
 trap 'report_failure "$LINENO" "$BASH_COMMAND"' ERR
 set -E
 
@@ -105,8 +118,10 @@ cluster() {
   # KubeVirt first: the operator detects it when it starts (D35).
   "$OPSLAB" addon kubevirt install
   # Only what tests need: no mirror, no official catalog (being released).
-  helm install opslab "$CHART" --namespace opslab-system --create-namespace --wait --timeout 10m \
+  helm install opslab "$CHART" --namespace opslab-system --create-namespace \
     --set mirror.enabled=false --set catalogs.official.enabled=false
+  # Tests need the operator (and the checker it runs), not the api or the UI.
+  kubectl -n opslab-system rollout status deployment/opslab-operator --timeout=5m
 }
 
 # images lists the machine images built from the challenge: machine, ref, dir.
