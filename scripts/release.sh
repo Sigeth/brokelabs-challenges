@@ -134,15 +134,21 @@ platform() {
     echo "every component of the platform is ready"
     return
   fi
-  local state pod
-  state=$(kubectl -n "$ns" get pods -o wide 2>&1)
+  local pod text
+  # Annotations hold 4096 characters: one per pod, then a network probe.
+  [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "the platform is not ready"$'\n'"$(kubectl -n "$ns" get pods -o wide 2>&1)"
   for pod in $(kubectl -n "$ns" get pods -o name); do
-    state+=$'\n'"--- $pod"$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --tail=25 2>&1 || true)"
-    state+=$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --previous --tail=15 2>/dev/null || true)"
-    state+=$'\n'"$(kubectl -n "$ns" describe "$pod" 2>/dev/null | sed -n '/^Events:/,$p' | tail -n 8 || true)"
+    text="$pod"$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --tail=20 2>&1 | cut -c1-200 || true)"
+    text+=$'\n'"--- previous"$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --previous --tail=10 2>/dev/null | cut -c1-200 || true)"
+    text+=$'\n'"--- events"$'\n'"$(kubectl -n "$ns" describe "$pod" 2>/dev/null | sed -n '/^Events:/,$p' | tail -n 6 | cut -c1-200 || true)"
+    echo "$text"
+    [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "${text:0:3900}"
   done
-  echo "$state"
-  [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "the platform is not ready"$'\n'"$state"
+  # Can a pod resolve a Service and reach it?
+  text=$(kubectl -n "$ns" run netprobe --image=docker.io/library/busybox:1.37 --restart=Never --rm -i --quiet \
+    --command -- sh -c "nslookup opslab-postgres.$ns.svc.cluster.local; nc -z -w 5 opslab-postgres.$ns.svc.cluster.local 5432 && echo tcp-ok || echo tcp-failed; nc -z -w 5 10.43.0.1 443 && echo apiserver-ok || echo apiserver-failed" 2>&1 | head -n 30)
+  echo "--- network probe"$'\n'"$text"
+  [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "network probe"$'\n'"$text"
   exit 1
 }
 
