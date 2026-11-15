@@ -63,6 +63,11 @@ jobs:
         run: make release-check TAG="$GITHUB_REF_NAME"
       - name: Start a test cluster
         run: make test-cluster
+      - name: Check the whole platform
+        # Diagnostic of a fresh install; releases only need the operator.
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        continue-on-error: true
+        run: make test-platform
       - name: Test
         run: make release-test CHALLENGE="$CHALLENGE"
       - name: Publish

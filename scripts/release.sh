@@ -124,6 +124,28 @@ cluster() {
   kubectl -n opslab-system rollout status deployment/opslab-operator --timeout=5m
 }
 
+# platform waits until every component of the platform is ready: a fresh
+# install must bring them all up, though challenge tests need only the
+# operator. On failure, the annotation shows each pod of the platform.
+platform() {
+  local ns=opslab-system
+  if kubectl -n "$ns" wait --for=condition=Available deployment --all --timeout=5m &&
+    kubectl -n "$ns" rollout status statefulset --timeout=2m; then
+    echo "every component of the platform is ready"
+    return
+  fi
+  local state pod
+  state=$(kubectl -n "$ns" get pods -o wide 2>&1)
+  for pod in $(kubectl -n "$ns" get pods -o name); do
+    state+=$'\n'"--- $pod"$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --tail=25 2>&1 || true)"
+    state+=$'\n'"$(kubectl -n "$ns" logs "$pod" --all-containers --previous --tail=15 2>/dev/null || true)"
+    state+=$'\n'"$(kubectl -n "$ns" describe "$pod" 2>/dev/null | sed -n '/^Events:/,$p' | tail -n 8 || true)"
+  done
+  echo "$state"
+  [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "the platform is not ready"$'\n'"$state"
+  exit 1
+}
+
 # images lists the machine images built from the challenge: machine, ref, dir.
 images() { "$OPSLAB" challenge images "$1" | awk -F'\t' '$3 != "-"'; }
 
@@ -179,5 +201,6 @@ case "${1:-}" in
   check | load | publish) "$1" "${2:?missing argument}" ;;
   test) run_test "${2:?missing argument}" ;;
   cluster) cluster ;;
+  platform) platform ;;
   *) echo "usage: $0 check TAG | cluster | load|test|publish CHALLENGE" >&2; exit 1 ;;
 esac

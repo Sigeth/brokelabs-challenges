@@ -7,13 +7,17 @@
 #   make release-test CHALLENGE=ssh-hardening
 #   make release-publish CHALLENGE=ssh-hardening
 
-.PHONY: release-check test-cluster release-test release-publish
+.PHONY: release-check test-cluster test-platform release-test release-publish
 
 release-check:
 	scripts/release.sh check $(TAG)
 
 test-cluster:
 	scripts/release.sh cluster
+
+## test-platform: wait for every component of the platform (a fresh install must come up)
+test-platform:
+	scripts/release.sh platform
 
 ## release-test: build the machine images, import them into k3s and run opslab challenge test
 release-test:
