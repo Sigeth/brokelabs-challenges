@@ -25,7 +25,7 @@ Every directory holding a `challenge.yaml` is one challenge package, with its ow
   solution/               reference solution (teachers and tests only)
 ```
 
-To add a challenge, copy [opslab-challenge-template](https://github.com/Sigeth/opslab-challenge-template) into a new directory. Its README is the author guide. Machine images follow the same rules here: a `student` user and group (1000:1000), and only the tools the tasks need.
+To add a challenge, copy [opslab-challenge-template](https://github.com/Sigeth/opslab-challenge-template) into a new directory. Its README is the author guide. Machine images follow the same rules here: start from an [opslab-images](https://github.com/Sigeth/opslab-images) container base (the `student` user and group, 1000:1000), and add only the tools the tasks need.
 
 ## Development
 

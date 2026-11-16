@@ -3,7 +3,7 @@ apiVersion: opslab.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: exposed-debug-port
-  version: 0.1.0
+  version: 0.1.1
 spec:
   title: Exposed debug port
   summary: A web container serves a database dump and runs a debug server that leaks its secrets. Close the leaks without taking the site down.
@@ -20,7 +20,7 @@ spec:
     - name: web
       runtime: pod
       # Built from images/web/Dockerfile (student user, minimal tooling).
-      image: ghcr.io/sigeth/opslab-challenges/exposed-debug-port/web:0.1.0
+      image: ghcr.io/sigeth/opslab-challenges/exposed-debug-port/web:0.1.1
       resources: {cpu: 100m, memory: 64Mi}
       setup: [setup/setup.sh]
 
