@@ -13,4 +13,4 @@ Fix it so that:
 
 You have `sudo` yourself. Useful commands: `sudo -l -U <user>`, `sudo visudo -f /etc/sudoers.d/<file>`, `sudo visudo -c`, `ls -l /etc/sudoers.d/`.
 
-Leave `/etc/sudoers.d/90-cloud-init-users` alone: it holds your rights and those of `opslab-checker`, the account that checks your work. Without them, checks fail.
+Leave `/etc/sudoers.d/90-cloud-init-users` alone: it holds your rights and those of `brokelabs-checker`, the account that checks your work. Without them, checks fail.

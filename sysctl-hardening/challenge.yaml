@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
-apiVersion: opslab.io/v1alpha1
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: sysctl-hardening
@@ -12,14 +12,14 @@ spec:
   estimatedTime: 20m
   tags: [sysctl, kernel, network]
   authors:
-    - name: opslab
+    - name: BrokeLabs
       url: https://github.com/Sigeth
   license: MIT
 
   machines:
     - name: server
       runtime: vm
-      image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+      image: ghcr.io/sigeth/brokelabs-images/debian-13:1.0.0
       resources: {cpu: "1", memory: 1Gi}
       setup: [setup/setup.sh]
 

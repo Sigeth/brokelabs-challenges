@@ -5,7 +5,7 @@
 #   scripts/release.sh check TAG          the tag <challenge>/v<version> matches challenge.yaml
 #   scripts/release.sh cluster            k3s, KubeVirt and the platform on this machine (sudo)
 #   scripts/release.sh load CHALLENGE     build its machine images and import them into k3s
-#   scripts/release.sh test CHALLENGE     opslab challenge test (fail, solution, pass)
+#   scripts/release.sh test CHALLENGE     brokelabs challenge test (fail, solution, pass)
 #   scripts/release.sh publish CHALLENGE  images (the tested bytes), signed package, signed index
 #
 # Machine images are built once (Dagger), tested from the local k3s, then
@@ -15,13 +15,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-: "${OPSLAB:=opslab}"
+: "${BROKELABS:=brokelabs}"
 : "${DAGGER:=dagger}"
-: "${CI_MODULE:=github.com/Sigeth/opslab-ci@v0.3.1}"
+: "${CI_MODULE:=github.com/Sigeth/brokelabs-ci@v0.4.0}"
 : "${K3S_VERSION:=v1.37.2+k3s1}"
-: "${CHART:=../opslab-charts/opslab}"
-REGISTRY=ghcr.io/sigeth/opslab-challenges
-CATALOG=ghcr.io/sigeth/opslab-catalog:latest
+: "${CHART:=../brokelabs-charts/brokelabs}"
+REGISTRY=ghcr.io/sigeth/brokelabs-challenges
+CATALOG=ghcr.io/sigeth/brokelabs-catalog:latest
 BUILD=.release
 
 # In GitHub Actions, a failure becomes an error annotation (readable without
@@ -78,17 +78,17 @@ die() {
 set -E
 
 # version_of prints the package version, as lint reads it ("<name> <version>: valid").
-version_of() { "$OPSLAB" challenge lint "$1" | awk 'NR == 1 { sub(":", "", $2); print $2 }'; }
+version_of() { "$BROKELABS" challenge lint "$1" | awk 'NR == 1 { sub(":", "", $2); print $2 }'; }
 
 check() {
   local tag=$1 challenge=${1%%/*} version=${1#*/v}
   [[ -f "$challenge/challenge.yaml" ]] || die "no challenge $challenge"
   [[ "$(version_of "$challenge")" == "$version" ]] || die "$challenge/challenge.yaml is at version $(version_of "$challenge"), not $version"
-  "$OPSLAB" challenge lint "$challenge"
+  "$BROKELABS" challenge lint "$challenge"
   # The package may only use images this repository publishes, or public bases.
   while IFS=$'\t' read -r machine ref dir; do
     [[ "$dir" == "-" || "$ref" == "$REGISTRY/$challenge/$machine:"* ]] || die "$machine: $ref must be $REGISTRY/$challenge/$machine:<version>"
-  done < <("$OPSLAB" challenge images "$challenge")
+  done < <("$BROKELABS" challenge images "$challenge")
   echo "$tag: releasing $challenge $version"
 }
 
@@ -110,25 +110,25 @@ cluster() {
     sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
   sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
   sudo install -d /etc/rancher/k3s
-  printf 'disable: [traefik, servicelb]\nwrite-kubeconfig-mode: "0644"\nnode-label: ["opslab.io/kvm=true"]\n' |
+  printf 'disable: [traefik, servicelb]\nwrite-kubeconfig-mode: "0644"\nnode-label: ["brokelabs.io/kvm=true"]\n' |
     sudo tee /etc/rancher/k3s/config.yaml >/dev/null
   curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" sh -
   mkdir -p ~/.kube && sudo cat /etc/rancher/k3s/k3s.yaml >~/.kube/config
   kubectl wait --for=condition=Ready node --all --timeout=180s
   # KubeVirt first: the operator detects it when it starts (D35).
-  "$OPSLAB" addon kubevirt install
+  "$BROKELABS" addon kubevirt install
   # Only what tests need: no mirror, no official catalog (being released).
-  helm install opslab "$CHART" --namespace opslab-system --create-namespace \
+  helm install brokelabs "$CHART" --namespace brokelabs-system --create-namespace \
     --set mirror.enabled=false --set catalogs.official.enabled=false
   # Tests need the operator (and the checker it runs), not the api or the UI.
-  kubectl -n opslab-system rollout status deployment/opslab-operator --timeout=5m
+  kubectl -n brokelabs-system rollout status deployment/brokelabs-operator --timeout=5m
 }
 
 # platform waits until every component of the platform is ready: a fresh
 # install must bring them all up, though challenge tests need only the
 # operator. On failure, the annotation shows each pod of the platform.
 platform() {
-  local ns=opslab-system
+  local ns=brokelabs-system
   if kubectl -n "$ns" wait --for=condition=Available deployment --all --timeout=5m &&
     kubectl -n "$ns" rollout status statefulset --timeout=2m; then
     echo "every component of the platform is ready"
@@ -146,14 +146,14 @@ platform() {
   done
   # Can a pod resolve a Service and reach it?
   text=$(kubectl -n "$ns" run netprobe --image=docker.io/library/busybox:1.37 --restart=Never --rm -i --quiet \
-    --command -- sh -c "nslookup opslab-postgres.$ns.svc.cluster.local; nc -z -w 5 opslab-postgres.$ns.svc.cluster.local 5432 && echo tcp-ok || echo tcp-failed; nc -z -w 5 10.43.0.1 443 && echo apiserver-ok || echo apiserver-failed" 2>&1 | head -n 30)
+    --command -- sh -c "nslookup brokelabs-postgres.$ns.svc.cluster.local; nc -z -w 5 brokelabs-postgres.$ns.svc.cluster.local 5432 && echo tcp-ok || echo tcp-failed; nc -z -w 5 10.43.0.1 443 && echo apiserver-ok || echo apiserver-failed" 2>&1 | head -n 30)
   echo "--- network probe"$'\n'"$text"
   [[ -z "${GITHUB_ACTIONS:-}" ]] || annotate "network probe"$'\n'"$text"
   exit 1
 }
 
 # images lists the machine images built from the challenge: machine, ref, dir.
-images() { "$OPSLAB" challenge images "$1" | awk -F'\t' '$3 != "-"'; }
+images() { "$BROKELABS" challenge images "$1" | awk -F'\t' '$3 != "-"'; }
 
 # archive builds a machine image into $BUILD/<machine>.tar, an OCI archive
 # named after its ref (the annotation containerd imports it under).
@@ -180,7 +180,7 @@ load() {
   done < <(images "$challenge")
 }
 
-run_test() { "$OPSLAB" challenge test "$1"; }
+run_test() { "$BROKELABS" challenge test "$1"; }
 
 publish() {
   local challenge=$1 version
@@ -193,12 +193,12 @@ publish() {
       "oci-archive:$BUILD/$machine.tar" "docker://$ref"
   done < <(images "$challenge")
   # build pins every image by digest: the ones just published, and the bases.
-  "$OPSLAB" challenge build "$challenge" -o "$BUILD/package"
+  "$BROKELABS" challenge build "$challenge" -o "$BUILD/package"
   local pkg index
-  pkg=$("$OPSLAB" challenge push "$BUILD/package" "$REGISTRY/$challenge")
-  "$OPSLAB" challenge sign "$pkg" --keyless
-  index=$("$OPSLAB" catalog index --base "$CATALOG" --create-if-missing --push "$CATALOG" "$pkg" | cut -d' ' -f1)
-  "$OPSLAB" catalog sign "$index" --keyless
+  pkg=$("$BROKELABS" challenge push "$BUILD/package" "$REGISTRY/$challenge")
+  "$BROKELABS" challenge sign "$pkg" --keyless
+  index=$("$BROKELABS" catalog index --base "$CATALOG" --create-if-missing --push "$CATALOG" "$pkg" | cut -d' ' -f1)
+  "$BROKELABS" catalog sign "$index" --keyless
   echo "$challenge $version: $pkg, listed in $index"
 }
 

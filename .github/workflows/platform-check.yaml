@@ -22,20 +22,20 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
-      OPSLAB_CLI_VERSION: v0.4.3
-      CHART: opslab-charts/opslab
+      BROKELABS_CLI_VERSION: v0.5.0
+      CHART: brokelabs-charts/brokelabs
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
         with:
-          repository: Sigeth/opslab-charts
-          ref: v0.4.1
-          path: opslab-charts
+          repository: Sigeth/brokelabs-charts
+          ref: v0.5.0
+          path: brokelabs-charts
       - uses: actions/setup-go@v6
         with:
           go-version: "1.27"
-      - name: Install the opslab CLI
-        run: go install "github.com/Sigeth/opslab-cli/cmd/opslab@$OPSLAB_CLI_VERSION"
+      - name: Install the BrokeLabs CLI
+        run: go install "github.com/Sigeth/brokelabs-cli/cmd/brokelabs@$BROKELABS_CLI_VERSION"
       - name: Install Dagger
         run: |
           mkdir -p "$HOME/.local/bin"

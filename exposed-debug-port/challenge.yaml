@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
-apiVersion: opslab.io/v1alpha1
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: exposed-debug-port
@@ -12,7 +12,7 @@ spec:
   estimatedTime: 15m
   tags: [network, web, secrets]
   authors:
-    - name: opslab
+    - name: BrokeLabs
       url: https://github.com/Sigeth
   license: MIT
 
@@ -20,7 +20,7 @@ spec:
     - name: web
       runtime: pod
       # Built from images/web/Dockerfile (student user, minimal tooling).
-      image: ghcr.io/sigeth/opslab-challenges/exposed-debug-port/web:0.1.1
+      image: ghcr.io/sigeth/brokelabs-challenges/exposed-debug-port/web:0.1.1
       resources: {cpu: 100m, memory: 64Mi}
       setup: [setup/setup.sh]
 

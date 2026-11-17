@@ -3,7 +3,7 @@
 # are in scripts/release.sh.
 #
 #   make release-check TAG=ssh-hardening/v0.1.0
-#   make test-cluster                       k3s, KubeVirt and opslab (sudo: CI runners only)
+#   make test-cluster                       k3s, KubeVirt and BrokeLabs (sudo: CI runners only)
 #   make release-test CHALLENGE=ssh-hardening
 #   make release-publish CHALLENGE=ssh-hardening
 
@@ -19,7 +19,7 @@ test-cluster:
 test-platform:
 	scripts/release.sh platform
 
-## release-test: build the machine images, import them into k3s and run opslab challenge test
+## release-test: build the machine images, import them into k3s and run brokelabs challenge test
 release-test:
 	scripts/release.sh load $(CHALLENGE)
 	scripts/release.sh test $(CHALLENGE)

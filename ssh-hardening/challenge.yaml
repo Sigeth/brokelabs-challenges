@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/opslab-core-go/main/schema/challenge-package.schema.json
-apiVersion: opslab.io/v1alpha1
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: ssh-hardening
@@ -12,15 +12,15 @@ spec:
   estimatedTime: 20m
   tags: [ssh, sshd, authentication]
   authors:
-    - name: opslab
+    - name: BrokeLabs
       url: https://github.com/Sigeth
   license: MIT
 
   machines:
     - name: server
       runtime: vm
-      # opslab-images Debian 13 base, used as is: setup breaks it.
-      image: ghcr.io/sigeth/opslab-images/debian-13:1.0.0
+      # brokelabs-images Debian 13 base, used as is: setup breaks it.
+      image: ghcr.io/sigeth/brokelabs-images/debian-13:1.0.0
       resources: {cpu: "1", memory: 1Gi}
       setup: [setup/setup.sh]
 
