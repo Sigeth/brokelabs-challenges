@@ -3,7 +3,7 @@ apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: auditd-watch
-  version: 0.1.0
+  version: 0.1.1
 spec:
   title: Audit trail
   summary: Nobody would notice if someone edited the accounts or sudo rules on this server. Turn the audit daemon on and watch the sensitive files, durably.
@@ -20,7 +20,7 @@ spec:
     - name: server
       runtime: vm
       # Built from images/server: the brokelabs-images Debian 13 base with auditd.
-      image: ghcr.io/sigeth/brokelabs-challenges/auditd-watch/server:0.1.0
+      image: ghcr.io/sigeth/brokelabs-challenges/auditd-watch/server:0.1.1
       resources: {cpu: "1", memory: 1Gi}
       setup: [setup/setup.sh]
 

@@ -3,7 +3,7 @@ apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: firewall-nftables
-  version: 0.1.0
+  version: 0.1.1
 spec:
   title: Default-deny firewall
   summary: An internal admin panel and a metrics endpoint are reachable from the network. Write an nftables firewall that only lets SSH and the website in, and keep it after a reboot.
@@ -20,7 +20,7 @@ spec:
     - name: server
       runtime: vm
       # Built from images/server: the brokelabs-images Debian 13 base with nftables.
-      image: ghcr.io/sigeth/brokelabs-challenges/firewall-nftables/server:0.1.0
+      image: ghcr.io/sigeth/brokelabs-challenges/firewall-nftables/server:0.1.1
       resources: {cpu: "1", memory: 1Gi}
       setup: [setup/setup.sh]
 

@@ -3,7 +3,7 @@ apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: leaky-home
-  version: 0.1.1
+  version: 0.1.2
 spec:
   title: Leaky home directory
   summary: A developer left an SSH key, application secrets and a backup script open to every user of the machine. Lock their home directory down.
@@ -20,7 +20,7 @@ spec:
     - name: box
       runtime: pod
       # Built from images/box/Dockerfile (student user, minimal tooling).
-      image: ghcr.io/sigeth/brokelabs-challenges/leaky-home/box:0.1.1
+      image: ghcr.io/sigeth/brokelabs-challenges/leaky-home/box:0.1.2
       resources: {cpu: 100m, memory: 128Mi}
       setup: [setup/setup.sh]
 

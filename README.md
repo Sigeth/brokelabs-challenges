@@ -25,7 +25,7 @@ Every directory holding a `challenge.yaml` is one challenge package, with its ow
   solution/               reference solution (teachers and tests only)
 ```
 
-To add a challenge, copy [brokelabs-challenge-template](https://github.com/Sigeth/brokelabs-challenge-template) into a new directory. Its README is the author guide. Machine images follow the same rules here: start from an [brokelabs-images](https://github.com/Sigeth/brokelabs-images) container base (the `student` user and group, 1000:1000), and add only the tools the tasks need.
+To add a challenge, copy [brokelabs-challenge-template](https://github.com/Sigeth/brokelabs-challenge-template) into a new directory. Its README is the author guide. Machine images follow the same rules here: start from a [brokelabs-images](https://github.com/Sigeth/brokelabs-images) container base (the `student` user and group, 1000:1000), and add only the tools the tasks need.
 
 ## Development
 

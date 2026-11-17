@@ -61,7 +61,7 @@ jobs:
           verb: call
           args: image --source=${{ matrix.image }}
 
-  # VM image recipes (vm machines), built on an brokelabs-images base.
+  # VM image recipes (vm machines), built on a brokelabs-images base.
   vm-image:
     needs: find
     runs-on: ubuntu-latest

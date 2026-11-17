@@ -3,7 +3,7 @@ apiVersion: brokelabs.io/v1alpha1
 kind: ChallengePackage
 metadata:
   name: sysctl-hardening
-  version: 0.1.0
+  version: 0.1.1
 spec:
   title: Kernel parameters
   summary: Someone tuned this server's kernel for a lab network and it stayed that way. Restore safe sysctl settings, at runtime and after a reboot.
@@ -19,7 +19,7 @@ spec:
   machines:
     - name: server
       runtime: vm
-      image: ghcr.io/sigeth/brokelabs-images/debian-13:1.0.0
+      image: ghcr.io/sigeth/brokelabs-images/debian-13:1.0.1
       resources: {cpu: "1", memory: 1Gi}
       setup: [setup/setup.sh]
 
