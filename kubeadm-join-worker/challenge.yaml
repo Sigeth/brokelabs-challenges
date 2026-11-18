@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: kubeadm-join-worker
+  version: 0.1.0
+spec:
+  title: Join a worker to a kubeadm cluster
+  summary: A fresh kubeadm control plane waits for its first worker. Join the second node to the cluster and get a workload running on it.
+  category: kubernetes
+  difficulty: medium
+  estimatedTime: 30m
+  tags: [kubeadm, nodes, cka]
+  authors:
+    - name: BrokeLabs
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    # brokelabs-images kubeadm node image: containerd, kubeadm 1.36 and every
+    # image the cluster needs, preloaded (instances are offline).
+    - name: cp
+      runtime: vm
+      image: ghcr.io/sigeth/brokelabs-images/kubeadm-1.36:1.0.0
+      resources: {cpu: "2", memory: 2Gi}
+      setup: [setup/cp.sh]
+    - name: worker
+      runtime: vm
+      image: ghcr.io/sigeth/brokelabs-images/kubeadm-1.36:1.0.0
+      resources: {cpu: "1", memory: 1536Mi}
+      setup: [setup/worker.sh]
+
+  access:
+    terminals:
+      - {machine: cp, label: control plane}
+      - {machine: worker, label: worker}
+
+  lifetime: {default: 1h, max: 2h}
+
+  tasks:
+    - id: control-plane-ready
+      title: The control plane stays Ready
+      points: 0
+      guard: true
+      check:
+        machine: cp
+        shell:
+          run: kubectl --kubeconfig /etc/kubernetes/admin.conf get node cp -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+          expectOutput: "^True$"
+    - id: worker-joined
+      title: The worker node is part of the cluster and Ready
+      points: 20
+      hints:
+        - {text: "On the control plane, `sudo kubeadm token create --print-join-command` prints everything the worker needs.", cost: 5}
+        - {text: "Run the join command with sudo on the worker, then watch `kubectl get nodes` on the control plane.", cost: 3}
+      check:
+        machine: cp
+        shell:
+          run: kubectl --kubeconfig /etc/kubernetes/admin.conf get node worker -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+          expectOutput: "^True$"
+    - id: pod-on-worker
+      title: A pod runs on the worker
+      points: 10
+      hints:
+        - {text: "The cluster is offline: use an image every node already has, such as the pause image (`crictl images` on a node).", cost: 3}
+      check:
+        machine: cp
+        shell:
+          run: kubectl --kubeconfig /etc/kubernetes/admin.conf get pods -A --field-selector spec.nodeName=worker,status.phase=Running -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}' | grep -v '^kube-' | grep -v '^kube-flannel$'
