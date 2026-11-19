@@ -110,10 +110,14 @@ cluster() {
     sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
   sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
   sudo install -d /etc/rancher/k3s
-  printf 'disable: [traefik, servicelb]\nwrite-kubeconfig-mode: "0644"\nnode-label: ["brokelabs.io/kvm=true"]\n' |
+  # pod-max-pids: students run code as root; without it a fork bomb takes the node.
+  printf 'disable: [traefik, servicelb]\nwrite-kubeconfig-mode: "0644"\nnode-label: ["brokelabs.io/kvm=true"]\nkubelet-arg: ["pod-max-pids=4096"]\nflannel-backend: none\ndisable-network-policy: true\n' |
     sudo tee /etc/rancher/k3s/config.yaml >/dev/null
   curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" sh -
   mkdir -p ~/.kube && sudo cat /etc/rancher/k3s/k3s.yaml >~/.kube/config
+  until kubectl get node -o name 2>/dev/null | grep -q .; do sleep 2; done
+  # Cilium is the network (D54): the node is Ready once it runs.
+  "$BROKELABS" addon cilium install
   kubectl wait --for=condition=Ready node --all --timeout=180s
   # KubeVirt first: the operator detects it when it starts (D35).
   "$BROKELABS" addon kubevirt install
