@@ -11,6 +11,10 @@ The official challenges of [BrokeLabs](https://github.com/Sigeth), a self-hosted
 | [sysctl-hardening](sysctl-hardening) | Linux hardening | easy | 1 `vm` |
 | [auditd-watch](auditd-watch) | Linux hardening | medium | 1 `vm` (own image) |
 | [firewall-nftables](firewall-nftables) | Linux hardening | medium | 1 `vm` |
+| [k8s-sa-tokens](k8s-sa-tokens) | Kubernetes | easy | 1 `vcluster` + 1 `pod` |
+| [rbac-least-privilege](rbac-least-privilege) | Kubernetes | medium | 1 `vcluster` + 1 `pod` |
+| [netpol-default-deny](netpol-default-deny) | Kubernetes | medium | 1 `vcluster` + 1 `pod` |
+| [kubeadm-join-worker](kubeadm-join-worker) | Kubernetes | medium | 2 `vm` (own image) |
 
 ## Layout
 

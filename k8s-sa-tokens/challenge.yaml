@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: k8s-sa-tokens
+  version: 0.1.0
+spec:
+  title: Stop leaking service account tokens
+  summary: Every pod in payments gets a Kubernetes API token it never uses. Stop mounting them, without breaking the one workload that needs the API.
+  category: kubernetes
+  difficulty: easy
+  estimatedTime: 15m
+  tags: [rbac, serviceaccounts, tokens]
+  authors:
+    - name: BrokeLabs
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: cluster
+      runtime: vcluster
+      kubernetes: "1.36"
+      seed: [setup/manifests]
+    - name: workstation
+      runtime: pod
+      # brokelabs-images Kubernetes workstation: kubectl, helm, jq, yq.
+      image: ghcr.io/sigeth/brokelabs-images/workstation-k8s:1.0.0
+      kubeconfigFor: cluster
+
+  access:
+    terminals:
+      - {machine: workstation, label: workstation}
+
+  tasks:
+    - id: no-unused-tokens
+      title: The api and worker pods no longer mount an API token
+      points: 15
+      hints:
+        - {text: "Look for a `kube-api-access-…` volume in `kubectl -n payments get pod -o yaml`: it holds the token.", cost: 3}
+        - {text: "`automountServiceAccountToken: false` works on a pod template or on a ServiceAccount.", cost: 5}
+      check:
+        machine: cluster
+        kubeCEL:
+          resource: {apiVersion: v1, kind: Pod, namespace: payments, labelSelector: "app in (api,worker)"}
+          # Pods being deleted (old replicas) do not count.
+          all: "has(object.metadata.deletionTimestamp) || !object.spec.?volumes.orValue([]).exists(v, has(v.projected) && v.projected.sources.exists(s, has(s.serviceAccountToken)))"
+    - id: workloads-still-deployed
+      title: The api and worker deployments still exist
+      points: 0
+      guard: true
+      check:
+        machine: cluster
+        kubeCEL:
+          resource: {apiVersion: apps/v1, kind: Deployment, namespace: payments, labelSelector: "tier=backend"}
+          all: "object.spec.?replicas.orValue(1) >= 1"
+    - id: reporter-keeps-its-token
+      title: The reporter, which reads the API, keeps its token
+      points: 0
+      guard: true
+      check:
+        machine: cluster
+        kubeCEL:
+          resource: {apiVersion: v1, kind: Pod, namespace: payments, labelSelector: "app=reporter"}
+          all: "object.spec.?volumes.orValue([]).exists(v, has(v.projected) && v.projected.sources.exists(s, has(s.serviceAccountToken)))"

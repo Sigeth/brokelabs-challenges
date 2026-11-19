@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Sigeth/brokelabs-core-go/main/schema/challenge-package.schema.json
+apiVersion: brokelabs.io/v1alpha1
+kind: ChallengePackage
+metadata:
+  name: rbac-least-privilege
+  version: 0.1.0
+spec:
+  title: Least privilege for a CI service account
+  summary: The CI pipeline deploys with a service account bound to cluster-admin. Give it only what it needs to roll out the apps namespace.
+  category: kubernetes
+  difficulty: medium
+  estimatedTime: 20m
+  tags: [rbac, serviceaccounts, cka]
+  authors:
+    - name: BrokeLabs
+      url: https://github.com/Sigeth
+  license: MIT
+
+  machines:
+    - name: cluster
+      runtime: vcluster
+      kubernetes: "1.36"
+      seed: [setup/manifests]
+    - name: workstation
+      runtime: pod
+      # brokelabs-images Kubernetes workstation: kubectl, helm, jq, yq.
+      image: ghcr.io/sigeth/brokelabs-images/workstation-k8s:1.0.0
+      kubeconfigFor: cluster
+
+  access:
+    terminals:
+      - {machine: workstation, label: workstation}
+
+  # The checks ask the API what ci-deployer may do (kubectl auth can-i,
+  # impersonating it with the workstation's admin credentials). A refusal
+  # must read "no": can-i also exits 1 when the API cannot answer.
+  tasks:
+    - id: not-cluster-admin
+      title: ci-deployer is no longer a cluster administrator
+      points: 10
+      hints:
+        - {text: "`kubectl get clusterrolebindings -o wide | grep ci-deployer` shows where its power comes from.", cost: 2}
+      check:
+        machine: workstation
+        shell:
+          run: test "$(kubectl auth can-i '*' '*' --all-namespaces --as=system:serviceaccount:ci:ci-deployer 2>/dev/null)" = no
+    - id: no-secrets
+      title: ci-deployer cannot read secrets, not even in apps
+      points: 10
+      hints:
+        - {text: "A Role in apps with only the resources and verbs a rollout needs: deployments, and reading pods to watch them.", cost: 3}
+      check:
+        machine: workstation
+        shell:
+          run: test "$(kubectl auth can-i get secrets -n apps --as=system:serviceaccount:ci:ci-deployer 2>/dev/null)" = no
+    - id: nothing-outside-apps
+      title: ci-deployer cannot change deployments outside apps
+      points: 5
+      check:
+        machine: workstation
+        shell:
+          run: test "$(kubectl auth can-i patch deployments.apps -n kube-system --as=system:serviceaccount:ci:ci-deployer 2>/dev/null)" = no
+    - id: can-still-deploy
+      title: ci-deployer can still roll out the apps namespace
+      points: 0
+      guard: true
+      check:
+        machine: workstation
+        shell:
+          run: >-
+            for verb in get list watch patch update; do
+            kubectl auth can-i "$verb" deployments.apps -n apps --as=system:serviceaccount:ci:ci-deployer >/dev/null || exit 1;
+            done;
+            kubectl auth can-i list pods -n apps --as=system:serviceaccount:ci:ci-deployer

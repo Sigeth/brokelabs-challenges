@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata: {name: payments}
+---
+# The reporter reads the API with its own service account.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: reporter, namespace: payments}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api, namespace: payments, labels: {tier: backend}}
+spec:
+  selector: {matchLabels: {app: api}}
+  template:
+    metadata: {labels: {app: api}}
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37
+          command: [sh, -c, "mkdir -p /www && echo payments-api > /www/index.html && exec httpd -f -p 8080 -h /www"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: worker, namespace: payments, labels: {tier: backend}}
+spec:
+  selector: {matchLabels: {app: worker}}
+  template:
+    metadata: {labels: {app: worker}}
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: worker
+          image: docker.io/library/busybox:1.37
+          command: [sh, -c, "while true; do sleep 3600; done"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: reporter, namespace: payments}
+spec:
+  selector: {matchLabels: {app: reporter}}
+  template:
+    metadata: {labels: {app: reporter}}
+    spec:
+      serviceAccountName: reporter
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: reporter
+          image: docker.io/library/busybox:1.37
+          command: [sh, -c, "while true; do ls /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 600; done"]
