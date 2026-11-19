@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 
 : "${BROKELABS:=brokelabs}"
 : "${DAGGER:=dagger}"
-: "${CI_MODULE:=github.com/Sigeth/brokelabs-ci@v0.4.0}"
+: "${CI_MODULE:=github.com/Sigeth/brokelabs-ci@v0.5.0}"
 : "${K3S_VERSION:=v1.37.2+k3s1}"
 : "${CHART:=../brokelabs-charts/brokelabs}"
 REGISTRY=ghcr.io/sigeth/brokelabs-challenges

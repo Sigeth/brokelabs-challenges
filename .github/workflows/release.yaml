@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      BROKELABS_CLI_VERSION: v0.5.0
+      BROKELABS_CLI_VERSION: v0.6.0
       DAGGER_VERSION: "0.21.11"
       CHART: brokelabs-charts/brokelabs
     steps:
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: Sigeth/brokelabs-charts
-          ref: v0.5.0
+          ref: v0.6.0
           path: brokelabs-charts
       - uses: actions/setup-go@v6
         with:
